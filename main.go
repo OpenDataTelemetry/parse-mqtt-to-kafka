@@ -1256,7 +1256,7 @@ func parseLnsMeasurement(measurement string, data string, port uint64) string {
 			smartLight.Temperature = port100.X_01_0
 			smartLight.Humidity = port100.X_02
 			smartLight.Movement = port100.X_0B
-			smartLight.Luminosity = float64(port100.X_0D_0)
+			smartLight.Luminosity = roundFloat((math.Pow(float64(port100.X_0D_0), -3.746) * 50000000000000), 1)
 			smartLight.BatteryVoltage = float64(port100.X_0D_1)
 			smartLight.BoardVoltage = port100.X_0C
 
