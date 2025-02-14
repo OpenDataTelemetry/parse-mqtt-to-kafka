@@ -16,6 +16,21 @@ import (
 	"github.com/google/uuid"
 )
 
+type Schema struct {
+	Name     string                 `json:"name"`
+	Tags     Tags                   `json:"tags"`
+	Fields   map[string]interface{} `json:"fields"`
+	DeviceId string                 `json:"deviceId"`
+}
+
+type Tags struct {
+	Organization   string `json:"organization"`
+	DeviceType     string `json:"deviceType"`
+	DeviceName     string `json:"deviceName"`
+	DeviceId       string `json:"deviceId"`
+	DeviceLocation string `json:"deviceLocation"`
+}
+
 type Influx struct {
 	Measurement string `json:"measurement"`
 	Tags        any    `json:"tags"`
@@ -1228,9 +1243,14 @@ func b64ToByte(b64 string) ([]byte, error) {
 	return b, err
 }
 
-func parseLnsMeasurement(measurement string, data string, port uint64) string {
+// func parseLnsMeasurement(measurement string, data string, port uint64) string {
+func parseLnsMeasurement(schema Schema, data string, port uint64) string {
 	// measurements format
+	// TODO:
 	var sb strings.Builder
+
+	// var dev map[string]interface{}
+	// err := json.Unmarshal([]byte(schema), &dev)
 
 	if data == "" {
 		return "No data"
@@ -1250,28 +1270,37 @@ func parseLnsMeasurement(measurement string, data string, port uint64) string {
 		d := protocolParserPort100(b)
 		json.Unmarshal([]byte(d), &port100)
 
-		switch measurement {
+		fields := schema.Fields
+		switch schema.Name {
 		case "SmartLight":
 			var smartLight SmartLight
-			smartLight.Temperature = port100.X_01_0
-			smartLight.Humidity = port100.X_02
-			smartLight.Movement = port100.X_0B
-			smartLight.Luminosity = float64(port100.X_0D_0)
-			smartLight.BatteryVoltage = float64(port100.X_0D_1)
-			smartLight.BoardVoltage = port100.X_0C
+			temperature := fields["temperature"].(map[string]interface{})
+			humidity := fields["humidity"].(map[string]interface{})
+			movement := fields["movement"].(map[string]interface{})
+			luminosity := fields["luminosity"].(map[string]interface{})
+			batteryVoltage := fields["batteryVoltage"].(map[string]interface{})
+			boardVoltage := fields["boardVoltage"].(map[string]interface{})
 
-			sb.WriteString(`,temperature=`)
-			sb.WriteString(strconv.FormatFloat(smartLight.Temperature, 'f', -1, 64))
-			sb.WriteString(`,humidity=`)
-			sb.WriteString(strconv.FormatFloat(smartLight.Humidity, 'f', -1, 64))
-			sb.WriteString(`,movement=`)
-			sb.WriteString(strconv.FormatUint(uint64(smartLight.Movement), 10))
-			sb.WriteString(`,luminosity=`)
-			sb.WriteString(strconv.FormatFloat(smartLight.Luminosity, 'f', -1, 64))
-			sb.WriteString(`,batteryVoltage=`)
-			sb.WriteString(strconv.FormatFloat(smartLight.BatteryVoltage, 'f', -1, 64))
-			sb.WriteString(`,boardVoltage=`)
-			sb.WriteString(strconv.FormatFloat(smartLight.BoardVoltage, 'f', -1, 64))
+			fmt.Printf("\nmeasurement %s", schema.Fields["temperature"])
+			smartLight.Temperature = port100.X_01_0*temperature["scale"].(float64) + temperature["offset"].(float64)
+			smartLight.Humidity = port100.X_02*humidity["scale"].(float64) + humidity["offset"].(float64)
+			smartLight.Movement = uint64(float64(port100.X_0B)*movement["scale"].(float64) + movement["offset"].(float64))
+			smartLight.Luminosity = float64(port100.X_0D_0)*luminosity["scale"].(float64) + luminosity["offset"].(float64)
+			smartLight.BatteryVoltage = float64(port100.X_0D_1)*batteryVoltage["scale"].(float64) + batteryVoltage["offset"].(float64)
+			smartLight.BoardVoltage = port100.X_0C*boardVoltage["scale"].(float64) + boardVoltage["offset"].(float64)
+
+			// sb.WriteString(`,temperature=`)
+			// sb.WriteString(strconv.FormatFloat(smartLight.Temperature, 'f', -1, 64))
+			// sb.WriteString(`,humidity=`)
+			// sb.WriteString(strconv.FormatFloat(smartLight.Humidity, 'f', -1, 64))
+			// sb.WriteString(`,movement=`)
+			// sb.WriteString(strconv.FormatUint(uint64(smartLight.Movement), 10))
+			// sb.WriteString(`,luminosity=`)
+			// sb.WriteString(strconv.FormatFloat(smartLight.Luminosity, 'f', -1, 64))
+			// sb.WriteString(`,batteryVoltage=`)
+			// sb.WriteString(strconv.FormatFloat(smartLight.BatteryVoltage, 'f', -1, 64))
+			// sb.WriteString(`,boardVoltage=`)
+			// sb.WriteString(strconv.FormatFloat(smartLight.BoardVoltage, 'f', -1, 64))
 
 		case "WaterTankLevel":
 			var waterTankLevel WaterTankLevel
@@ -1518,7 +1547,7 @@ func parseLnsMeasurement(measurement string, data string, port uint64) string {
 		d := protocolParserPort4(b)
 		json.Unmarshal([]byte(d), &port4)
 
-		switch measurement {
+		switch schema.Name {
 		case "WeatherStation":
 			var weatherStation WeatherStation
 
@@ -1627,7 +1656,9 @@ func parseLnsMeasurement(measurement string, data string, port uint64) string {
 	return sb.String()
 }
 
-func parseLns(measurement string, deviceId string, direction string, etc string, message string) string {
+// func parseLns(measurement string, deviceId string, direction string, etc string, message string) string {
+func parseLns(schema Schema, direction string, etc string, message string) string {
+	// measurement, deviceId, direction, etc, incoming[1]
 	var sb strings.Builder
 	var lnsUp LnsUp
 	var lnsCommand LnsCommand
@@ -1652,9 +1683,13 @@ func parseLns(measurement string, deviceId string, direction string, etc string,
 	switch etc {
 	case "imt":
 		if direction == "up" {
-			json.Unmarshal([]byte(message), &lnsImtUp)
+			fmt.Printf("\nBefore Unmarshal %v", schema)
+			fmt.Printf("\nMessage %v", message)
 
-			lnsUp.Measurement = measurement
+			json.Unmarshal([]byte(message), &lnsImtUp)
+			fmt.Printf("\nAfter Unmarshal")
+
+			lnsUp.Measurement = schema.Name
 			lnsUp.DeviceId = lnsImtUp.DevEUI
 			lnsUp.RxInfoMac_0 = lnsImtUp.RxInfo[0].Mac
 			lnsUp.RxInfoTime_0 = lnsImtUp.RxInfo[0].Time.Unix() * 1000 * 1000 * 1000
@@ -1679,7 +1714,7 @@ func parseLns(measurement string, deviceId string, direction string, etc string,
 			json.Unmarshal([]byte(message), &lnsChirpStackV4Up)
 			// fmt.Printf("\nmessage from chirpstackv4 parseLns %s", message)
 
-			lnsUp.Measurement = measurement
+			lnsUp.Measurement = schema.Name
 			lnsUp.DeviceId = lnsChirpStackV4Up.DeviceInfo.DevEui
 			lnsUp.RxInfoMac_0 = lnsChirpStackV4Up.RxInfo[0].GatewayId
 			lnsUp.RxInfoTime_0 = lnsChirpStackV4Up.RxInfo[0].NsTime.UnixNano()
@@ -1728,11 +1763,18 @@ func parseLns(measurement string, deviceId string, direction string, etc string,
 	if direction == "up" {
 		// Measurement
 		sb.WriteString(lnsUp.Measurement)
+		// sb.WriteString(schema.name)
+
+		// TODO: READ AGGREGATION-SCHEMA.JSON ACCORDING
+		// ORGANIZATION.DEVICETYPE.MEASUREMENT.DEVICEID
+		// THEN, CHECK FOR AGGREATIONS TAGS AND TRANSFORMATION FIELDS
 
 		// Tags
 		sb.WriteString(`,deviceType=LNS`)
+		// sb.WriteString(`,deviceType=`)
+		// sb.WriteString(`,schema.deviceType`)
 		sb.WriteString(`,deviceId=`)
-		sb.WriteString(deviceId)
+		sb.WriteString(schema.DeviceId)
 		sb.WriteString(`,direction=`)
 		sb.WriteString(direction)
 		sb.WriteString(`,origin=`)
@@ -1747,9 +1789,22 @@ func parseLns(measurement string, deviceId string, direction string, etc string,
 		// sb.WriteString(`,txCodeRate=`)
 		// sb.WriteString(lns.TxInfoCodeRate)
 
+		// sb.WriteString(aggregateSchema(schema) -> schema.tags in sb.WriteString()
+		sb.WriteString(`,deviceName=`)
+		sb.WriteString(schema.Tags.DeviceName)
+		sb.WriteString(`,deviceLocation=`)
+		sb.WriteString(schema.Tags.DeviceLocation)
+		sb.WriteString(`,organization=`)
+		sb.WriteString(schema.Tags.Organization)
+
 		// Fields
 		sb.WriteString(` `)
-		sb.WriteString(`txFrequency=`)
+		sb.WriteString(`,data="`)
+		sb.WriteString(lnsUp.Data)
+		sb.WriteString(`"`)
+		sb.WriteString(parseLnsMeasurement(schema, lnsUp.Data, lnsUp.FPort))
+
+		sb.WriteString(`,txFrequency=`)
 		sb.WriteString(strconv.FormatFloat(lnsUp.TxInfoFrequency, 'f', -1, 64))
 		sb.WriteString(`,txBandWidth=`)
 		sb.WriteString(strconv.FormatUint(uint64(lnsUp.TxInfoBandWidth), 10))
@@ -1769,11 +1824,11 @@ func parseLns(measurement string, deviceId string, direction string, etc string,
 		sb.WriteString(strconv.FormatUint(uint64(lnsUp.FPort), 10))
 		sb.WriteString(`,fCnt=`)
 		sb.WriteString(strconv.FormatUint(uint64(lnsUp.FCnt), 10))
-		sb.WriteString(`,data="`)
-		sb.WriteString(lnsUp.Data)
-		sb.WriteString(`"`)
+		// sb.WriteString(`,data="`)
+		// sb.WriteString(lnsUp.Data)
+		// sb.WriteString(`"`)
 
-		sb.WriteString(parseLnsMeasurement(lnsUp.Measurement, lnsUp.Data, lnsUp.FPort))
+		// sb.WriteString(parseLnsMeasurement(lnsUp.Measurement, lnsUp.Data, lnsUp.FPort))
 
 		// Timestamp_ms
 		sb.WriteString(` `)
@@ -1786,12 +1841,12 @@ func parseLns(measurement string, deviceId string, direction string, etc string,
 
 		// Measurement
 		// sb.WriteString("Lns")
-		sb.WriteString(measurement)
+		sb.WriteString(schema.Name)
 
 		// Tags
 		sb.WriteString(`,deviceType=LNS`)
 		sb.WriteString(`,deviceId=`)
-		sb.WriteString(deviceId)
+		sb.WriteString(schema.DeviceId)
 		// sb.WriteString(`,type=downlink`)
 		sb.WriteString(`,direction=`)
 		sb.WriteString(direction)
@@ -1850,12 +1905,12 @@ func parseLns(measurement string, deviceId string, direction string, etc string,
 			actionSensor = "empty"
 		}
 
-		sb.WriteString(measurement)
+		sb.WriteString(schema.Name)
 
 		// Tags
 		sb.WriteString(`,deviceType=LNS`)
 		sb.WriteString(`,deviceId=`)
-		sb.WriteString(deviceId)
+		sb.WriteString(schema.DeviceId)
 		// sb.WriteString(`,type=alert`)
 		sb.WriteString(`,direction=`)
 		sb.WriteString(direction)
@@ -2889,6 +2944,26 @@ func connLostHandler(c MQTT.Client, err error) {
 }
 
 func main() {
+
+	file, err := os.Open("schema.json")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+
+	var data map[string]interface{}
+	err = decoder.Decode(&data)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	// Print the decoded JSON data
+	fmt.Println(data)
+
 	id := uuid.New().String()
 	// ORGANIZATION := os.Getenv("ORGANIZATION")
 	// DEVICE_TYPE := os.Getenv("DEVICE_TYPE")
@@ -2979,14 +3054,61 @@ func main() {
 		// 2. Process
 		// 2.1. Process Topic
 		s := strings.Split(incoming[0], "/")
+
+		// JSON SCHEMA
+		// jsonSchema := `{
+		// 	"deviceId": "000459282",
+		// 	"name": "SmartLight",
+		// 	"tags": {
+		// 		"deviceId": "000459282",
+		// 		"organization": "IMT",
+		// 		"deviceType": "LNS",
+		// 		"deviceName": "SmartLight_1",
+		// 		"deviceLocation": "R210"
+		// 	},
+		// 	"fields": {
+		// 		"temperature": {
+		// 			"scale": 0.1,
+		// 			"offset": 0
+		// 		},
+		// 		"humidity": {
+		// 			"scale": 0.1,
+		// 			"offset": 0
+		// 		},
+		// 		"boardVoltage": {
+		// 			"scale": 0.1,
+		// 			"offset": 0
+		// 		},
+		// 		"movement": {
+		// 			"scale": 0.1,
+		// 			"offset": 0
+		// 		},
+		// 		"luminosity": {
+		// 			"scale": 0.1,
+		// 			"offset": 0
+		// 		},
+		// 		"batteryVoltage": {
+		// 			"scale": 0.1,
+		// 			"offset": 0
+		// 		}
+		// 	}
+		// }`
+
+		var schema Schema
+		json.Unmarshal(data["schema"].([]byte), &schema)
+
 		// OpenDataTelemetry/IMT/LNS/MEASUREMENT/DEVICE_ID/up/imt
 		// OpenDataTelemetry/IMT/LNS/MEASUREMENT/DEVICE_ID/down/chirpstackv4
 		organization := s[1]
-		deviceType := s[2]
-		measurement := s[3]
-		deviceId := s[4]
+		deviceType := s[2]  // get from schema
+		measurement := s[3] // get from schema
+		deviceId := s[4]    // query the schema SELECT FROM schema WHERE tags.deviceId = s[4]
 		direction := s[5]
 		etc := s[6]
+
+		// json := imt-schema.json
+		// deviceType = json.deviceType
+		// measurement = json.measurement
 
 		// // DEBUG
 		// measurement := s[4]
@@ -3012,7 +3134,8 @@ func main() {
 		case "IMT":
 			switch deviceType {
 			case "LNS":
-				kafkaMessage = parseLns(measurement, deviceId, direction, etc, incoming[1])
+				// kafkaMessage = parseLns(measurement, deviceId, direction, etc, incoming[1])
+				kafkaMessage = parseLns(schema, direction, etc, incoming[1])
 
 			case "EVSE":
 				kafkaMessage = parseEvse(measurement, deviceType, deviceId, direction, etc, incoming[1])

@@ -1,34 +1,77 @@
 {
-    "organizations": [
-        {
-            "organization_name": "SmartCampusMaua",
-            "applications": [
-                {
-                    "application_name": "GMS",
-                    "devices": [
-                        {
-                            "device_name": "WaterTankLevel_1",
-                            "device_id": "0001",
-                            "device_type": "WaterTankLevel"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "organization_name": "SaoRafael",
-            "applications": [
-                {
-                    "application_name": "Health",
-                    "devices": [
-                        {
-                            "device_name": "HealthPack_1",
-                            "device_id": "0001",
-                            "device_type": "HealthPack"
-                        }
-                    ]
-                }
-            ]
-        }
-    ]
+  "schema": [
+  {
+    "deviceId": "000459282",
+    "name": "SmartLight",
+    "tags": {
+      "deviceId": "000459282",
+      "organization": "IMT",
+      "deviceType": "LNS",
+      "deviceName": "SmartLight_1",
+      "deviceLocation": "R210"
+    },
+    "fields": {
+      "temperature": {
+        "scale": 0.1,
+        "offset": 0
+      },
+      "humidity": {
+        "scale": 0.1,
+        "offset": 0
+      },
+      "boardVoltage": {
+        "scale": 0.1,
+        "offset": 0
+      },
+      "movement": {
+        "scale": 0.1,
+        "offset": 0
+      },
+      "luminosity": {
+        "scale": 0.1,
+        "offset": 0
+      },
+      "batteryVoltage": {
+        "scale": 0.1,
+        "offset": 0
+      }
+    }
+  },
+  {
+    "name": "SmartLight",
+    "deviceId": "000459282",
+    "tags": {
+      "organization": "IMT",
+      "deviceType": "LNS",
+      "deviceName": "SmartLight_1",
+      "deviceLocation": "R210"
+    },
+    "fields": {
+      "temperature": {
+        "scale": 0.1,
+        "offset": 0
+      },
+      "humidity": {
+        "scale": 0.1,
+        "offset": 0
+      },
+      "boardVoltage": {
+        "scale": 0.1,
+        "offset": 0
+      },
+      "movement": {
+        "scale": 0.1,
+        "offset": 0
+      },
+      "luminosity": {
+        "scale": 0.1,
+        "offset": 0
+      },
+      "batteryVoltage": {
+        "scale": 0.1,
+        "offset": 0
+      }
+    }
+  }
+]
 }
