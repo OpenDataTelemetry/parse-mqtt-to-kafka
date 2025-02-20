@@ -316,6 +316,20 @@ type SmartLight struct {
 	BoardVoltage   float64 `json:"boardVoltage"`
 }
 
+type MilkFat struct {
+	Temperature  float64 `json:"temperature"`
+	InfraRed     uint64  `json:"infraRed"`
+	Capacitive   uint64  `json:"capacitive"`
+	MilkFat      float64 `json:"milkFat"`
+	BoardVoltage float64 `json:"boardVoltage"`
+}
+
+type GPS struct {
+	Latitude     float64 `json:"latitude"`
+	Longitude    float64 `json:"longitude"`
+	BoardVoltage float64 `json:"boardVoltage"`
+}
+
 type VibrationAverage struct {
 	Temperature       float64 `json:"temperature"`
 	Humidity          float64 `json:"humidity"`
@@ -1228,7 +1242,7 @@ func b64ToByte(b64 string) ([]byte, error) {
 	return b, err
 }
 
-func parseLnsMeasurement(measurement string, data string, port uint64) string {
+func parseLnsMeasurement(measurement string, data string, port uint64, deviceId string) string {
 	// measurements format
 	var sb strings.Builder
 
@@ -1374,48 +1388,47 @@ func parseLnsMeasurement(measurement string, data string, port uint64) string {
 			sb.WriteString(strconv.FormatFloat(soilMoisture3DepthLevels.BoardVoltage, 'f', -1, 64))
 
 		case "MilkFat":
-			// var smartLight SmartLight
-			// smartLight.Temperature = port100.X_01_0
-			// smartLight.Humidity = port100.X_02
-			// smartLight.Movement = port100.X_0B
-			// smartLight.Luminosity = float64(port100.X_0D_0)
-			// smartLight.BatteryVoltage = float64(port100.X_0D_1)
-			// smartLight.BoardVoltage = port100.X_0C
+			var milkFat MilkFat
+			milkFat.Temperature = port100.X_01_0
+			milkFat.InfraRed = port100.X_0D_0
+			milkFat.Capacitive = port100.X_0D_1
+			if deviceId == "0004a30b00e9d7c9" {
+				milkFat.MilkFat = (float64(milkFat.InfraRed-100) * 0.035)
+			}
+			if deviceId == "0004a30b00e9856d" {
+				milkFat.MilkFat = (float64(milkFat.InfraRed-180) * 0.0292)
+			}
+			if deviceId == "0004a30b00e94844" {
+				milkFat.MilkFat = (float64(milkFat.InfraRed-190) * 0.0159)
+			}
+			if milkFat.MilkFat >= 10 {
+				milkFat.MilkFat = -1
+			}
+			milkFat.BoardVoltage = port100.X_0C
 
-			// sb.WriteString(`,temperature=`)
-			// sb.WriteString(strconv.FormatFloat(smartLight.Temperature, 'f', -1, 64))
-			// sb.WriteString(`,humidity=`)
-			// sb.WriteString(strconv.FormatFloat(smartLight.Humidity, 'f', -1, 64))
-			// sb.WriteString(`,movement=`)
-			// sb.WriteString(strconv.FormatUint(uint64(smartLight.Movement), 10))
-			// sb.WriteString(`,luminosity=`)
-			// sb.WriteString(strconv.FormatFloat(smartLight.Luminosity, 'f', -1, 64))
-			// sb.WriteString(`,batteryVoltage=`)
-			// sb.WriteString(strconv.FormatFloat(smartLight.BatteryVoltage, 'f', -1, 64))
-			// sb.WriteString(`,boardVoltage=`)
-			// sb.WriteString(strconv.FormatFloat(smartLight.BoardVoltage, 'f', -1, 64))
+			sb.WriteString(`,temperature=`)
+			sb.WriteString(strconv.FormatFloat(milkFat.Temperature, 'f', -1, 64))
+			sb.WriteString(`,infraRed=`)
+			sb.WriteString(strconv.FormatUint(uint64(milkFat.InfraRed), 10))
+			sb.WriteString(`,capacitive=`)
+			sb.WriteString(strconv.FormatUint(uint64(milkFat.Capacitive), 10))
+			sb.WriteString(`,milkFat=`)
+			sb.WriteString(strconv.FormatFloat(float64(milkFat.MilkFat), 'f', -1, 64))
+			sb.WriteString(`,boardVoltage=`)
+			sb.WriteString(strconv.FormatFloat(milkFat.BoardVoltage, 'f', -1, 64))
 
 		case "GPS":
-			// var smartLight SmartLight
-			// smartLight.Temperature = port100.X_01_0
-			// smartLight.Humidity = port100.X_02
-			// smartLight.Movement = port100.X_0B
-			// smartLight.Luminosity = float64(port100.X_0D_0)
-			// smartLight.BatteryVoltage = float64(port100.X_0D_1)
-			// smartLight.BoardVoltage = port100.X_0C
+			var gps GPS
+			gps.Latitude = port100.X_0A_0
+			gps.Longitude = port100.X_0A_1
+			gps.BoardVoltage = port100.X_0C
 
-			// sb.WriteString(`,temperature=`)
-			// sb.WriteString(strconv.FormatFloat(smartLight.Temperature, 'f', -1, 64))
-			// sb.WriteString(`,humidity=`)
-			// sb.WriteString(strconv.FormatFloat(smartLight.Humidity, 'f', -1, 64))
-			// sb.WriteString(`,movement=`)
-			// sb.WriteString(strconv.FormatUint(uint64(smartLight.Movement), 10))
-			// sb.WriteString(`,luminosity=`)
-			// sb.WriteString(strconv.FormatFloat(smartLight.Luminosity, 'f', -1, 64))
-			// sb.WriteString(`,batteryVoltage=`)
-			// sb.WriteString(strconv.FormatFloat(smartLight.BatteryVoltage, 'f', -1, 64))
-			// sb.WriteString(`,boardVoltage=`)
-			// sb.WriteString(strconv.FormatFloat(smartLight.BoardVoltage, 'f', -1, 64))
+			sb.WriteString(`,latitude=`)
+			sb.WriteString(strconv.FormatFloat(gps.Latitude, 'f', -1, 64))
+			sb.WriteString(`,longitude=`)
+			sb.WriteString(strconv.FormatFloat(gps.Longitude, 'f', -1, 64))
+			sb.WriteString(`,boardVoltage=`)
+			sb.WriteString(strconv.FormatFloat(gps.BoardVoltage, 'f', -1, 64))
 
 		case "Temperature8Point":
 			var temperature8Point Temperature8Point
@@ -1773,7 +1786,7 @@ func parseLns(measurement string, deviceId string, direction string, etc string,
 		sb.WriteString(lnsUp.Data)
 		sb.WriteString(`"`)
 
-		sb.WriteString(parseLnsMeasurement(lnsUp.Measurement, lnsUp.Data, lnsUp.FPort))
+		sb.WriteString(parseLnsMeasurement(lnsUp.Measurement, lnsUp.Data, lnsUp.FPort, deviceId))
 
 		// Timestamp_ms
 		sb.WriteString(` `)
