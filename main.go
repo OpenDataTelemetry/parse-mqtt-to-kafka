@@ -1401,8 +1401,10 @@ func parseLnsMeasurement(measurement string, data string, port uint64, deviceId 
 			if deviceId == "0004a30b00e94844" {
 				milkFat.MilkFat = (float64(milkFat.InfraRed-190) * 0.0159)
 			}
-			if milkFat.MilkFat >= 10 {
+			if milkFat.MilkFat > 10 {
 				milkFat.MilkFat = -1
+			} else {
+				roundFloat(milkFat.MilkFat, 1)
 			}
 			milkFat.BoardVoltage = port100.X_0C
 
