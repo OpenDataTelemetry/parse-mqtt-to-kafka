@@ -311,7 +311,7 @@ type SmartLight struct {
 	Temperature    float64 `json:"temperature"`
 	Humidity       float64 `json:"humidity"`
 	Luminosity     float64 `json:"lux"`
-	Movement       uint64  `json:"movement"`
+	MovementCounter       uint64  `json:"movementCounter"`
 	BatteryVoltage float64 `json:"battery"`
 	BoardVoltage   float64 `json:"boardVoltage"`
 }
@@ -374,7 +374,7 @@ type GaugePressure struct {
 }
 
 type Hydrometer struct {
-	Counter      uint64  `json:"counter"`
+	LitreCounter      uint64  `json:"litreCounter"`
 	BoardVoltage float64 `json:"boardVoltage"`
 }
 
@@ -1269,7 +1269,7 @@ func parseLnsMeasurement(measurement string, data string, port uint64, deviceId 
 			var smartLight SmartLight
 			smartLight.Temperature = port100.X_01_0
 			smartLight.Humidity = port100.X_02
-			smartLight.Movement = port100.X_0B
+			smartLight.MovementCounter = port100.X_0B
 			smartLight.Luminosity = roundFloat((math.Pow(float64(port100.X_0D_0), -3.746) * 50000000000000), 1)
 			smartLight.BatteryVoltage = float64(port100.X_0D_1) * 4.3 / 1000
 			smartLight.BoardVoltage = port100.X_0C
@@ -1278,8 +1278,8 @@ func parseLnsMeasurement(measurement string, data string, port uint64, deviceId 
 			sb.WriteString(strconv.FormatFloat(smartLight.Temperature, 'f', -1, 64))
 			sb.WriteString(`,humidity=`)
 			sb.WriteString(strconv.FormatFloat(smartLight.Humidity, 'f', -1, 64))
-			sb.WriteString(`,movement=`)
-			sb.WriteString(strconv.FormatUint(uint64(smartLight.Movement), 10))
+			sb.WriteString(`,movementCounter=`)
+			sb.WriteString(strconv.FormatUint(uint64(smartLight.MovementCounter), 10))
 			sb.WriteString(`,luminosity=`)
 			sb.WriteString(strconv.FormatFloat(smartLight.Luminosity, 'f', -1, 64))
 			sb.WriteString(`,batteryVoltage=`)
@@ -1312,11 +1312,11 @@ func parseLnsMeasurement(measurement string, data string, port uint64, deviceId 
 
 		case "Hydrometer":
 			var hydrometer Hydrometer
-			hydrometer.Counter = port100.X_0B
+			hydrometer.LitreCounter = port100.X_0B
 			hydrometer.BoardVoltage = port100.X_0C
 
-			sb.WriteString(`,counter=`)
-			sb.WriteString(strconv.FormatUint(uint64(hydrometer.Counter), 10))
+			sb.WriteString(`,litreCounter=`)
+			sb.WriteString(strconv.FormatUint(uint64(hydrometer.LitreCounter)*1000, 10))
 			sb.WriteString(`,boardVoltage=`)
 			sb.WriteString(strconv.FormatFloat(hydrometer.BoardVoltage, 'f', -1, 64))
 
