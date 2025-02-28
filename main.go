@@ -178,6 +178,15 @@ type EvseUp struct {
 	Timestamp     int64  `json:"timestamp"`
 }
 
+type EvseDown struct {
+	FeatureName   string `json:"featureName"`
+	DeviceId      string `json:"deviceId"`
+	DeviceType    string `json:"deviceType"`
+	ConnectorId   string `json:"ConnectorId"`
+	ChargePointId string `json:"chargePointId"`
+	Timestamp     int64  `json:"timestamp"`
+}
+
 type EvseMeterValue struct {
 	ForwardEnergy float64 `json:"forwardEnergy"`
 }
@@ -202,6 +211,11 @@ type EvseStopTransaction struct {
 	MeterStop     int64  `json:"meterStop"`
 	StopTime      int64  `json:"stopTime"`
 }
+
+type EvseUnlockConnector struct {
+	Data string `json:"data"`
+}
+
 type LnsCommand struct {
 	Measurement string
 	Application string
@@ -308,12 +322,12 @@ type Port4 struct {
 	IsEmwAtmPres             bool
 }
 type SmartLight struct {
-	Temperature    float64 `json:"temperature"`
-	Humidity       float64 `json:"humidity"`
-	Luminosity     float64 `json:"lux"`
-	MovementCounter       uint64  `json:"movementCounter"`
-	BatteryVoltage float64 `json:"battery"`
-	BoardVoltage   float64 `json:"boardVoltage"`
+	Temperature     float64 `json:"temperature"`
+	Humidity        float64 `json:"humidity"`
+	Luminosity      float64 `json:"lux"`
+	MovementCounter uint64  `json:"movementCounter"`
+	BatteryVoltage  float64 `json:"battery"`
+	BoardVoltage    float64 `json:"boardVoltage"`
 }
 
 type MilkFat struct {
@@ -374,7 +388,7 @@ type GaugePressure struct {
 }
 
 type Hydrometer struct {
-	LitreCounter      uint64  `json:"litreCounter"`
+	LitreCounter uint64  `json:"litreCounter"`
 	BoardVoltage float64 `json:"boardVoltage"`
 }
 
@@ -1965,6 +1979,18 @@ func parseEvseMeasurement(measurement string, data string) string {
 		sb.WriteString(strconv.FormatInt(evseStopTransaction.MeterStop, 10))
 		sb.WriteString(`,stopTime=`)
 		sb.WriteString(strconv.FormatInt(evseStopTransaction.StopTime, 10))
+
+	case "UnlockConnector":
+		var evseUnlockConnector EvseUnlockConnector
+		json.Unmarshal([]byte(data), &evseUnlockConnector)
+
+		sb.WriteString(` `)
+		sb.WriteString(`data="`)
+		sb.WriteString(evseUnlockConnector.Data)
+		sb.WriteString(`"`)
+		// sb.WriteString(strconv.FormatInt(evseStopTransaction.MeterStop, 10))
+		// sb.WriteString(`,stopTime=`)
+		// sb.WriteString(strconv.FormatInt(evseStopTransaction.StopTime, 10))
 	}
 
 	return sb.String()
@@ -1974,6 +2000,7 @@ func parseEvse(measurement string, deviceType string, deviceId string, direction
 	var sb strings.Builder
 	var evseUp EvseUp
 	var alert Alert
+	var evseDown EvseDown
 
 	if message == "" {
 		return "No message to parse"
@@ -2089,6 +2116,49 @@ func parseEvse(measurement string, deviceType string, deviceId string, direction
 		sb.WriteString(` `)
 		sb.WriteString(strconv.FormatInt(int64(alert.Timestamp), 10))
 	}
+
+	if direction == "down" {
+
+		json.Unmarshal([]byte(message), &evseDown)
+
+		// Measurement
+		sb.WriteString(measurement)
+
+		// Tags
+		sb.WriteString(`,deviceId=`)
+		sb.WriteString(evseDown.DeviceId)
+		sb.WriteString(`,deviceType=`)
+		sb.WriteString(deviceType)
+		// sb.WriteString(`,connectorId=`)
+		// sb.WriteString(evseDown.ConnectorId)
+		// sb.WriteString(`,chargePointId=`)
+		// sb.WriteString(evseDown.ChargePointId)
+		// sb.WriteString(`,unit=`)
+		// sb.WriteString(evseDown.Unit)
+		// sb.WriteString(`,format=`)
+		// sb.WriteString(evseDown.Format)
+		// sb.WriteString(`,measurand=`)
+		// sb.WriteString(evseDown.Measurand)
+		// sb.WriteString(`,context=`)
+		// sb.WriteString(evseDown.Context)
+		// sb.WriteString(`,location=`)
+		// sb.WriteString(evseDown.Location)
+
+		sb.WriteString(`,direction=`)
+		sb.WriteString(direction)
+		sb.WriteString(`,origin=`)
+		sb.WriteString(etc)
+
+		// Fields
+		// sb.WriteString(`,fowardEnergy=`)
+		// sb.WriteString(strconv.FormatUint(evseDown.FowardEnergy, 10))
+		sb.WriteString(parseEvseMeasurement(measurement, message))
+
+		// Timestamp_ns
+		sb.WriteString(` `)
+		sb.WriteString(strconv.FormatInt(evseDown.Timestamp, 10))
+	}
+
 	return sb.String()
 }
 
