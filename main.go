@@ -216,6 +216,10 @@ type EvseUnlockConnector struct {
 	Data string `json:"data"`
 }
 
+type EvseRemoteStopTransaction struct {
+	Data string `json:"data"`
+}
+
 type LnsCommand struct {
 	Measurement string
 	Application string
@@ -1991,7 +1995,19 @@ func parseEvseMeasurement(measurement string, data string) string {
 		// sb.WriteString(strconv.FormatInt(evseStopTransaction.MeterStop, 10))
 		// sb.WriteString(`,stopTime=`)
 		// sb.WriteString(strconv.FormatInt(evseStopTransaction.StopTime, 10))
+  case "RemoteStopTransaction":
+		var evseRemoteStopTransaction EvseRemoteStopTransaction
+		json.Unmarshal([]byte(data), &evseRemoteStopTransaction)
+
+		sb.WriteString(` `)
+		sb.WriteString(`data="`)
+		sb.WriteString(evseRemoteStopTransaction.Data)
+		sb.WriteString(`"`)
+		// sb.WriteString(strconv.FormatInt(evseStopTransaction.MeterStop, 10))
+		// sb.WriteString(`,stopTime=`)
+		// sb.WriteString(strconv.FormatInt(evseStopTransaction.StopTime, 10))
 	}
+  
 
 	return sb.String()
 }
