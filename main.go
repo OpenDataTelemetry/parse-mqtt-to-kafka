@@ -2189,7 +2189,7 @@ func parseEvse(measurement string, deviceType string, deviceId string, direction
 
 		// Tags
 		sb.WriteString(`,deviceId=`)
-		sb.WriteString(evseDown.ChargePointId)
+		sb.WriteString(evseDown.DeviceId)
 		sb.WriteString(`,deviceType=`)
 		sb.WriteString(deviceType)
     sb.WriteString(`,connectorId=`)
