@@ -186,7 +186,7 @@ type EvseDown struct {
 	DeviceId      string `json:"deviceId"`
 	EvseId        string `json:"evseId"`
 	DeviceType    string `json:"deviceType"`
-	ConnectorId   string `json:"ConnectorId"`
+	ConnectorId   string `json:"connectorId"`
 	ChargePointId string `json:"chargePointId"`
 	Timestamp     int64  `json:"timestamp"`
 }
@@ -2038,8 +2038,9 @@ func parseEvse(measurement string, deviceType string, deviceId string, direction
 			case "2":
 				evseUp.EvseId = "BRIMTE19743013"
 			}
-
-		}
+		} else {
+      evseDown.EvseId = evseDown.ChargePointId
+    }
 
 		// Measurement
 		sb.WriteString(measurement)
@@ -2170,7 +2171,7 @@ func parseEvse(measurement string, deviceType string, deviceId string, direction
 
 		json.Unmarshal([]byte(message), &evseDown)
 
-		if evseDown.ChargePointId == "BRIMTS01" {
+		if evseDown.DeviceId == "BRIMTS01" {
 			switch evseDown.ConnectorId {
 			case "0":
 				evseDown.EvseId = "BRIMTS01"
@@ -2179,15 +2180,16 @@ func parseEvse(measurement string, deviceType string, deviceId string, direction
 			case "2":
 				evseDown.EvseId = "BRIMTE19743013"
 			}
-
-		}
+		} else {
+      evseDown.EvseId = evseDown.DeviceId
+    }
 
 		// Measurement
 		sb.WriteString(measurement)
 
 		// Tags
 		sb.WriteString(`,deviceId=`)
-		sb.WriteString(evseDown.DeviceId)
+		sb.WriteString(evseDown.ChargePointId)
 		sb.WriteString(`,deviceType=`)
 		sb.WriteString(deviceType)
     sb.WriteString(`,connectorId=`)
