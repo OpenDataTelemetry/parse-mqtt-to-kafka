@@ -155,6 +155,15 @@ type HealthPackAlarm struct {
 	Alarms map[string]interface{} `json:"alarms"`
 }
 
+type RFIDSense struct {
+	ID          string          `json:"id"`
+	Data        RFSenseBytes    `json:"data"`
+}
+
+type RFSenseBytes struct {
+	Data []int `json:"data"`
+}
+
 type NspiUp struct {
 	Measurement string `json:"measurement"`
 	DeviceId    string `json:"deviceId"`
@@ -166,6 +175,7 @@ type NspiUp struct {
 type NspiGenericJson struct {
 	Data string `json:"data"`
 }
+
 type EvseUp struct {
 	FeatureName string `json:"featureName"`
 	// DeviceId      string `json:"deviceId"`
@@ -2961,6 +2971,127 @@ func parseHealthPack(measurement string, deviceType string, deviceId string, dir
 	return sb.String()
 }
 
+func parseRFIDSense(measurement string,  deviceType string, deviceId string, direction string, etc string, data string) string {
+	var sb strings.Builder
+  timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)
+
+	if data == "" {
+		return "No data"
+	}
+
+	if measurement != "RFIDSense" {
+		return "Unsupported measurement"                            
+	}
+
+	var payload RFIDSense
+	err := json.Unmarshal([]byte(data), &payload)
+	if err != nil {
+		return "Invalid JSON"
+	}
+
+	if len(payload.Data.Data) < 8 {
+		return "Invalid data length"
+	}
+
+	// CAN ID (últimos 4 bits binários do ID hexadecimal)
+	canIDInt, err := strconv.ParseInt(payload.ID, 16, 64)
+	if err != nil {
+		return "Invalid CAN ID"
+	}
+	canIDBits := fmt.Sprintf("%04b", canIDInt)[len(fmt.Sprintf("%04b", canIDInt))-4:]
+
+	// Extrair tag (bytes 4 a 7)
+	tag := ""
+	for i := 4; i <= 7; i++ {
+		tag += fmt.Sprintf("%02X", payload.Data.Data[i])
+	}
+
+  sb.WriteString(measurement)
+	sb.WriteString(`,deviceType=`)
+	sb.WriteString(deviceType)
+  sb.WriteString(`,deviceId=`)
+	sb.WriteString(deviceId)
+	sb.WriteString(`,direction=`)
+	sb.WriteString(direction)
+	sb.WriteString(`,origin=`)
+	sb.WriteString(etc)
+
+	sb.WriteString(",tagId=")
+	sb.WriteString(tag)
+
+	if canIDBits == "0001" {
+		// Temperatura: bytes 0-3
+		hex := ""
+		for i := 0; i <= 3; i++ {
+			hex += fmt.Sprintf("%02X", payload.Data.Data[i])
+		}
+		temp, err := strconv.ParseInt(hex, 16, 64)
+		if err == nil && temp > 2147483647 {
+			temp = -4294967295 + temp
+		}
+		sb.WriteString(" temperature=")
+		sb.WriteString(fmt.Sprintf("%.1f", float64(temp)/100))
+	}
+
+	if canIDBits == "0101" {
+		// strain: bytes 0-3
+		hex := ""
+		for i := 0; i <= 3; i++ {
+			hex += fmt.Sprintf("%02X", payload.Data.Data[i])
+		}
+		strain, err := strconv.ParseInt(hex, 16, 64)
+		if err == nil {
+			sb.WriteString(" strain=")
+			sb.WriteString(fmt.Sprintf("%d", strain))
+		}
+	}
+
+	sb.WriteString(" ")
+	sb.WriteString(timestamp)
+
+	return sb.String()
+}
+
+func parseRFIDSenseECU(measurement string,  deviceType string, deviceId string, direction string, etc string, data string) string {
+  var sb strings.Builder
+	timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)
+
+	// Tags
+	sb.WriteString(measurement)
+	sb.WriteString(`,deviceType=`)
+	sb.WriteString(deviceType)
+	sb.WriteString(`,deviceId=`)
+	sb.WriteString(deviceId)
+	sb.WriteString(`,direction=`)
+	sb.WriteString(direction)
+	sb.WriteString(`,origin=`)
+	sb.WriteString(etc)
+	sb.WriteString(`,tagId=`)
+	sb.WriteString(deviceId)
+
+	// Fields
+	sb.WriteString(" ")
+
+	// Parse JSON: {"Temp": n} ou {"Press": n}
+	var parsed map[string]float64
+	err := json.Unmarshal([]byte(data), &parsed)
+	if err != nil {
+		sb.WriteString("invalid_data=1")
+	} else {
+		if val, ok := parsed["Temp"]; ok {
+			sb.WriteString(fmt.Sprintf("temperature=%.1f", val))
+		} else if val, ok := parsed["Press"]; ok {
+			sb.WriteString(fmt.Sprintf("strain=%.1f", val))
+		}
+	}
+
+	// Timestamp
+	sb.WriteString(" ")
+	sb.WriteString(timestamp)
+
+	return sb.String()
+}
+
 func parseNspiMeasurement(measurement string, data string) string {
 	var sb strings.Builder
 
@@ -3160,6 +3291,7 @@ func main() {
 		// evse_startTransaction, raw= timestamp_ms
 		// evse_heartbeat, raw= timestamp_ms
 
+
 		switch organization {
 		case "IMT":
 			switch deviceType {
@@ -3174,6 +3306,17 @@ func main() {
 
 			case "HealthPack":
 				kafkaMessage = parseHealthPack(measurement, deviceType, deviceId, direction, etc, incoming[1])
+			
+      // caso manter apenas o decode do via onda
+      // case "IoTyre":
+      //   kafkaMessage = parseRFIDSense(measurement, deviceType, deviceId ,direction, etc, incoming[1])
+      case "IoTyre":
+        switch etc {
+          case "ecu":
+            kafkaMessage = parseRFIDSenseECU(measurement, deviceType, deviceId ,direction, etc, incoming[1])
+          case "can":
+            kafkaMessage = parseRFIDSense(measurement, deviceType, deviceId ,direction, etc, incoming[1])
+          }
 
 			default:
 			}
