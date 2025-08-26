@@ -45,8 +45,8 @@ type LnsUp struct {
 
 type Alert struct {
 	DeviceId     string `json:"deviceId"`
-	EvseId     string `json:"evseId"`
-	ConnectorId     string `json:"ConnectorId"`
+	EvseId       string `json:"evseId"`
+	ConnectorId  string `json:"ConnectorId"`
 	DeviceType   string `json:"deviceType"`
 	Etc          string `json:"etc"`
 	Data         string `json:"data"`
@@ -156,8 +156,8 @@ type HealthPackAlarm struct {
 }
 
 type RFIDSense struct {
-	ID          string          `json:"id"`
-	Data        RFSenseBytes    `json:"data"`
+	ID   string       `json:"id"`
+	Data RFSenseBytes `json:"data"`
 }
 
 type RFSenseBytes struct {
@@ -443,6 +443,56 @@ type Temperature8Point struct {
 	BoardVoltage float64 `json:"boardVoltage"`
 }
 
+type LnsAtcUp struct {
+	Type   string         `json:"type"`
+	Meta   LnsAtcUpMeta   `json:"meta"`
+	Params LnsAtcUpParams `json:"params"`
+}
+
+type LnsAtcUpMeta struct {
+	Application string  `json:"application"`
+	Device_addr string  `json:"device_addr"`
+	Time        float64 `json:"time"`
+	Device      string  `json:"device"`
+	Gateway     string  `json:"gateway"`
+}
+
+type LnsAtcUpParams struct {
+	Payload    string        `json:"payload"`
+	Port       uint64        `json:"port"`
+	Counter_up uint64        `json:"counter_up"`
+	Rx_time    float64       `json:"rx_time"`
+	Radio      LnsAtcUpRadio `json:"radio"`
+}
+
+type LnsAtcUpRadio struct {
+	Datarate   uint64             `json:"datarate"`
+	Hardware   LnsAtcUpHardware   `json:"hardware"`
+	Modulation LnsAtcUpModulation `json:"modulation"`
+	Time       float64            `json:"time"`
+	Freq       float64            `json:"freq"`
+	Size       uint64             `json:"size"`
+}
+
+type LnsAtcUpModulation struct {
+	Bandwidth uint64 `json:"bandwidth"`
+	Type      string `json:"type"`
+	Spreading uint64 `json:"spreading"`
+	Coderate  string `json:"coderate"`
+}
+
+type LnsAtcUpHardware struct {
+	Snr  float64     `json:"snr"`
+	Rssi float64     `json:"rssi"`
+	Gps  LnsAtcUpGps `json:"gps"`
+}
+
+type LnsAtcUpGps struct {
+	Lat float64 `json:"lat"`
+	Lng float64 `json:"lng"`
+	Alt float64 `json:"alt"`
+}
+
 type LnsChirpStackV4Up struct {
 	DeduplicationId string                      `json:"deduplicationId"`
 	DeviceInfo      LnsChirpStackV4UpDeviceInfo `json:"deviceInfo"`
@@ -545,6 +595,19 @@ type LnsImtUpTxInfo struct {
 	DataRate  LnsImtUpDataRate `json:"dataRate"`
 	Adr       bool             `json:"adr"`
 	// CodeRate  string         `json:"codeRate"`
+}
+
+func floatToTime(timestamp float64) time.Time {
+	// Handle negative timestamps properly
+	if timestamp >= 0 {
+		sec := int64(timestamp)
+		nsec := int64(math.Round((timestamp - float64(sec)) * 1e9))
+		return time.Unix(sec, nsec).UTC()
+	} else {
+		sec := int64(math.Ceil(timestamp)) - 1
+		nsec := int64(math.Round((timestamp - float64(sec)) * 1e9))
+		return time.Unix(sec, nsec).UTC()
+	}
 }
 
 func roundFloat(val float64, precision uint) float64 {
@@ -1682,6 +1745,7 @@ func parseLns(measurement string, deviceId string, direction string, etc string,
 	var alert Alert
 	// var lnsImtCommand LnsImtCommand
 	var lnsChirpStackV4Up LnsChirpStackV4Up
+	var lnsAtcUp LnsAtcUp
 	// var lnsChirpstackV4Command LnsChirpstackV4Command
 
 	// fmt.Printf("\nmeasurement %s", measurement)
@@ -1748,24 +1812,36 @@ func parseLns(measurement string, deviceId string, direction string, etc string,
 		}
 
 	case "atc":
-		// lns.Measurement = measurement
-		// lns.DeviceId = lnsImt.DevEUI
-		// lns.RxInfoMac_0 = lnsImt.RxInfo[0].Mac
-		// lns.RxInfoTime_0 = lnsImt.RxInfo[0].Time.Unix() * 1000 * 1000 * 1000
-		// lns.RxInfoRssi_0 = lnsImt.RxInfo[0].Rssi
-		// lns.RxInfoSnr_0 = lnsImt.RxInfo[0].LoRaSNR
-		// lns.RxInfoLat_0 = lnsImt.RxInfo[0].Latitude
-		// lns.RxInfoLon_0 = lnsImt.RxInfo[0].Longitude
-		// lns.RxInfoAlt_0 = lnsImt.RxInfo[0].Altitude
-		// lns.TxInfoFrequency = lnsImt.TxInfo.Frequency / 1000000
-		// lns.TxInfoModulation = lnsImt.TxInfo.DataRate.Modulation
-		// lns.TxInfoBandWidth = lnsImt.TxInfo.DataRate.Bandwidth
-		// lns.TxInfoSpreadFactor = lnsImt.TxInfo.DataRate.SpreadFactor
-		// lns.TxInfoCodeRate = lnsImt.TxInfo.CodeRate
-		// lns.FCnt = lnsImt.FCnt
-		// lns.FPort = lnsImt.FPort
-		// lns.FType = "uplink"
-		// lns.Data = lnsImt.Data
+		if direction == "up" {
+			s := strings.ReplaceAll(message, " ", "")
+			json.Unmarshal([]byte(s), &lnsAtcUp)
+			fmt.Printf("\nmessage from ATC parseLns %s", s)
+
+			lnsUp.Measurement = measurement
+			lnsUp.DeviceId = lnsAtcUp.Meta.Device
+			lnsUp.RxInfoMac_0 = lnsAtcUp.Meta.Gateway
+
+			lnsUp.RxInfoTime_0 = int64(math.Round(lnsAtcUp.Params.Rx_time * 1e9))
+
+			lnsUp.RxInfoRssi_0 = int64(lnsAtcUp.Params.Radio.Hardware.Rssi)
+			lnsUp.RxInfoSnr_0 = lnsAtcUp.Params.Radio.Hardware.Snr
+			lnsUp.RxInfoLat_0 = lnsAtcUp.Params.Radio.Hardware.Gps.Lat
+			lnsUp.RxInfoLon_0 = lnsAtcUp.Params.Radio.Hardware.Gps.Lng
+			lnsUp.RxInfoAlt_0 = uint64(lnsAtcUp.Params.Radio.Hardware.Gps.Alt)
+			lnsUp.TxInfoFrequency = lnsAtcUp.Params.Radio.Freq
+			lnsUp.TxInfoModulation = lnsAtcUp.Params.Radio.Modulation.Type
+			lnsUp.TxInfoBandWidth = lnsAtcUp.Params.Radio.Modulation.Bandwidth / 1000
+			lnsUp.TxInfoSpreadFactor = lnsAtcUp.Params.Radio.Modulation.Spreading
+			// lnsUp.TxInfoCodeRate = lnsAtcUp.TxInfo.Modulation.Lora.CodeRate
+			lnsUp.FCnt = lnsAtcUp.Params.Counter_up
+			lnsUp.FPort = lnsAtcUp.Params.Port
+			lnsUp.FType = lnsAtcUp.Type
+			lnsUp.Data = lnsAtcUp.Params.Payload
+			fmt.Printf("\nnsAtcUp.Params.Payload %s", lnsAtcUp.Params.Payload)
+			fmt.Printf("\nlnsAtcUp.Type %s", lnsAtcUp.Type)
+			fmt.Printf("\nlnsAtcUp.Meta.Device %s", lnsAtcUp.Meta.Device)
+
+		}
 
 	default:
 	}
@@ -2049,8 +2125,8 @@ func parseEvse(measurement string, deviceType string, deviceId string, direction
 				evseUp.EvseId = "BRIMTE19743013"
 			}
 		} else {
-      evseDown.EvseId = evseDown.ChargePointId
-    }
+			evseDown.EvseId = evseDown.ChargePointId
+		}
 
 		// Measurement
 		sb.WriteString(measurement)
@@ -2095,7 +2171,7 @@ func parseEvse(measurement string, deviceType string, deviceId string, direction
 	if direction == "alert" {
 		json.Unmarshal([]byte(message), &alert)
 
-    if alert.DeviceId == "BRIMTS01" {
+		if alert.DeviceId == "BRIMTS01" {
 			switch alert.ConnectorId {
 			case "0":
 				alert.EvseId = "BRIMTS01"
@@ -2104,8 +2180,7 @@ func parseEvse(measurement string, deviceType string, deviceId string, direction
 			case "2":
 				alert.EvseId = "BRIMTE19743013"
 			}
-    }
-
+		}
 
 		var trigger string
 		var triggerAt string
@@ -2142,7 +2217,7 @@ func parseEvse(measurement string, deviceType string, deviceId string, direction
 		sb.WriteString(`,deviceType=EVSE`)
 		sb.WriteString(`,deviceId=`)
 		sb.WriteString(deviceId)
-    sb.WriteString(`,connectorId=`)
+		sb.WriteString(`,connectorId=`)
 		sb.WriteString(alert.ConnectorId)
 		sb.WriteString(`,evseId=`)
 		sb.WriteString(alert.EvseId)
@@ -2191,8 +2266,8 @@ func parseEvse(measurement string, deviceType string, deviceId string, direction
 				evseDown.EvseId = "BRIMTE19743013"
 			}
 		} else {
-      evseDown.EvseId = evseDown.DeviceId
-    }
+			evseDown.EvseId = evseDown.DeviceId
+		}
 
 		// Measurement
 		sb.WriteString(measurement)
@@ -2202,7 +2277,7 @@ func parseEvse(measurement string, deviceType string, deviceId string, direction
 		sb.WriteString(evseDown.DeviceId)
 		sb.WriteString(`,deviceType=`)
 		sb.WriteString(deviceType)
-    sb.WriteString(`,connectorId=`)
+		sb.WriteString(`,connectorId=`)
 		sb.WriteString(evseDown.ConnectorId)
 		sb.WriteString(`,evseId=`)
 		sb.WriteString(evseDown.EvseId)
@@ -2971,16 +3046,16 @@ func parseHealthPack(measurement string, deviceType string, deviceId string, dir
 	return sb.String()
 }
 
-func parseRFIDSense(measurement string,  deviceType string, deviceId string, direction string, etc string, data string) string {
+func parseRFIDSense(measurement string, deviceType string, deviceId string, direction string, etc string, data string) string {
 	var sb strings.Builder
-  timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)
+	timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)
 
 	if data == "" {
 		return "No data"
 	}
 
 	if measurement != "RFIDSense" {
-		return "Unsupported measurement"                            
+		return "Unsupported measurement"
 	}
 
 	var payload RFIDSense
@@ -3006,10 +3081,10 @@ func parseRFIDSense(measurement string,  deviceType string, deviceId string, dir
 		tag += fmt.Sprintf("%02X", payload.Data.Data[i])
 	}
 
-  sb.WriteString(measurement)
+	sb.WriteString(measurement)
 	sb.WriteString(`,deviceType=`)
 	sb.WriteString(deviceType)
-  sb.WriteString(`,deviceId=`)
+	sb.WriteString(`,deviceId=`)
 	sb.WriteString(deviceId)
 	sb.WriteString(`,direction=`)
 	sb.WriteString(direction)
@@ -3052,8 +3127,8 @@ func parseRFIDSense(measurement string,  deviceType string, deviceId string, dir
 	return sb.String()
 }
 
-func parseRFIDSenseECU(measurement string,  deviceType string, deviceId string, direction string, etc string, data string) string {
-  var sb strings.Builder
+func parseRFIDSenseECU(measurement string, deviceType string, deviceId string, direction string, etc string, data string) string {
+	var sb strings.Builder
 	timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)
 
 	// Tags
@@ -3291,7 +3366,6 @@ func main() {
 		// evse_startTransaction, raw= timestamp_ms
 		// evse_heartbeat, raw= timestamp_ms
 
-
 		switch organization {
 		case "IMT":
 			switch deviceType {
@@ -3306,17 +3380,17 @@ func main() {
 
 			case "HealthPack":
 				kafkaMessage = parseHealthPack(measurement, deviceType, deviceId, direction, etc, incoming[1])
-			
-      // caso manter apenas o decode do via onda
-      // case "IoTyre":
-      //   kafkaMessage = parseRFIDSense(measurement, deviceType, deviceId ,direction, etc, incoming[1])
-      case "IoTyre":
-        switch etc {
-          case "ecu":
-            kafkaMessage = parseRFIDSenseECU(measurement, deviceType, deviceId ,direction, etc, incoming[1])
-          case "can":
-            kafkaMessage = parseRFIDSense(measurement, deviceType, deviceId ,direction, etc, incoming[1])
-          }
+
+			// caso manter apenas o decode do via onda
+			// case "IoTyre":
+			//   kafkaMessage = parseRFIDSense(measurement, deviceType, deviceId ,direction, etc, incoming[1])
+			case "IoTyre":
+				switch etc {
+				case "ecu":
+					kafkaMessage = parseRFIDSenseECU(measurement, deviceType, deviceId, direction, etc, incoming[1])
+				case "can":
+					kafkaMessage = parseRFIDSense(measurement, deviceType, deviceId, direction, etc, incoming[1])
+				}
 
 			default:
 			}
