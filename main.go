@@ -425,9 +425,9 @@ type Sprinkler struct {
 }
 
 type SoilMoisture3DepthLevels struct {
-	SoilMoistureDepthLevel1 uint64  `json:"soilMoistureDepthLevel1"`
-	SoilMoistureDepthLevel2 uint64  `json:"soilMoistureDepthLevel2"`
-	SoilMoistureDepthLevel3 uint64  `json:"soilMoistureDepthLevel3"`
+	SoilMoistureDepthLevel1 float64 `json:"soilMoistureDepthLevel1"`
+	SoilMoistureDepthLevel2 float64 `json:"soilMoistureDepthLevel2"`
+	SoilMoistureDepthLevel3 float64 `json:"soilMoistureDepthLevel3"`
 	BoardVoltage            float64 `json:"boardVoltage"`
 }
 
@@ -1468,10 +1468,142 @@ func parseLnsMeasurement(measurement string, data string, port uint64, deviceId 
 
 		case "SoilMoisture3DepthLevels":
 			var soilMoisture3DepthLevels SoilMoisture3DepthLevels
-			soilMoisture3DepthLevels.SoilMoistureDepthLevel1 = port100.X_0D_2
-			soilMoisture3DepthLevels.SoilMoistureDepthLevel2 = port100.X_0D_1
-			soilMoisture3DepthLevels.SoilMoistureDepthLevel3 = port100.X_0D_0
-			soilMoisture3DepthLevels.BoardVoltage = port100.X_0C
+			var a, x, y, f float64
+			if deviceId == "0004a30b00e9be97" {
+				// 10
+				y = -0.8
+				a = 15000
+				x = float64(port100.X_0D_0)
+
+				f = roundFloat(a*math.Pow(x, y), 0)
+				if f > 100 {
+					f = 100
+				}
+				if f < 0 {
+					f = 0
+				}
+				soilMoisture3DepthLevels.SoilMoistureDepthLevel1 = f
+
+				// 30
+				y = -0.8
+				a = 15000
+				x = float64(port100.X_0D_1)
+
+				f = roundFloat(a*math.Pow(x, y), 0)
+				if f > 100 {
+					f = 100
+				}
+				if f < 0 {
+					f = 0
+				}
+				soilMoisture3DepthLevels.SoilMoistureDepthLevel2 = f
+
+				// 70
+				y = -0.8
+				a = 15000
+				x = float64(port100.X_0D_2)
+
+				f = roundFloat(a*math.Pow(x, y), 0)
+				if f > 100 {
+					f = 100
+				}
+				if f < 0 {
+					f = 0
+				}
+				soilMoisture3DepthLevels.SoilMoistureDepthLevel3 = f
+			}
+
+			if deviceId == "0004a30b00e93245" {
+				// 10
+				y = -0.516
+				a = 795
+				x = float64(port100.X_0D_0)
+
+				f = roundFloat(a*math.Pow(x, y), 0)
+				if f > 100 {
+					f = 100
+				}
+				if f < 0 {
+					f = 0
+				}
+				soilMoisture3DepthLevels.SoilMoistureDepthLevel1 = f
+
+				// 30
+				y = -0.512
+				a = 856
+				x = float64(port100.X_0D_1)
+
+				f = roundFloat(a*math.Pow(x, y), 0)
+				if f > 100 {
+					f = 100
+				}
+				if f < 0 {
+					f = 0
+				}
+				soilMoisture3DepthLevels.SoilMoistureDepthLevel2 = f
+
+				// 70
+				y = -0.553
+				a = 1011
+				x = float64(port100.X_0D_2)
+
+				f = roundFloat(a*math.Pow(x, y), 0)
+				if f > 100 {
+					f = 100
+				}
+				if f < 0 {
+					f = 0
+				}
+				soilMoisture3DepthLevels.SoilMoistureDepthLevel3 = f
+			}
+
+			if deviceId == "0004a30b00e9d69d" {
+				// 10
+				y = -0.516
+				a = 795
+				x = float64(port100.X_0D_0)
+
+				f = roundFloat(a*math.Pow(x, y), 0)
+				if f > 100 {
+					f = 100
+				}
+				if f < 0 {
+					f = 0
+				}
+				soilMoisture3DepthLevels.SoilMoistureDepthLevel1 = f
+
+				// 30
+				y = -0.512
+				a = 856
+				x = float64(port100.X_0D_1)
+
+				f = roundFloat(a*math.Pow(x, y), 0)
+				if f > 100 {
+					f = 100
+				}
+				if f < 0 {
+					f = 0
+				}
+				soilMoisture3DepthLevels.SoilMoistureDepthLevel2 = f
+
+				// 70
+				y = -0.553
+				a = 1011
+				x = float64(port100.X_0D_2)
+
+				f = roundFloat(a*math.Pow(x, y), 0)
+				if f > 100 {
+					f = 100
+				}
+				if f < 0 {
+					f = 0
+				}
+				soilMoisture3DepthLevels.SoilMoistureDepthLevel3 = f
+			}
+			// soilMoisture3DepthLevels.SoilMoistureDepthLevel1 = port100.X_0D_2
+			// soilMoisture3DepthLevels.SoilMoistureDepthLevel2 = port100.X_0D_1
+			// soilMoisture3DepthLevels.SoilMoistureDepthLevel3 = port100.X_0D_0
+			// soilMoisture3DepthLevels.BoardVoltage = port100.X_0C
 
 			sb.WriteString(`,soilMoistureDepthLevel1=`)
 			sb.WriteString(strconv.FormatUint(uint64(soilMoisture3DepthLevels.SoilMoistureDepthLevel1), 10))
