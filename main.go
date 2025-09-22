@@ -1476,6 +1476,8 @@ func parseLnsMeasurement(measurement string, data string, port uint64, deviceId 
 				x = float64(port100.X_0D_0)
 
 				f = roundFloat(a*math.Pow(x, y), 0)
+				f = roundFloat(f/1.0, 0)
+
 				if f > 100 {
 					f = 100
 				}
@@ -1490,6 +1492,8 @@ func parseLnsMeasurement(measurement string, data string, port uint64, deviceId 
 				x = float64(port100.X_0D_1)
 
 				f = roundFloat(a*math.Pow(x, y), 0)
+				f = roundFloat(f/1.1, 0)
+
 				if f > 100 {
 					f = 100
 				}
@@ -1504,6 +1508,8 @@ func parseLnsMeasurement(measurement string, data string, port uint64, deviceId 
 				x = float64(port100.X_0D_2)
 
 				f = roundFloat(a*math.Pow(x, y), 0)
+				f = roundFloat(f/1.5, 0)
+
 				if f > 100 {
 					f = 100
 				}
